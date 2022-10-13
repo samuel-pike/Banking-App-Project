@@ -5,7 +5,7 @@ from enum import Enum
 from tempfile import mkdtemp
 from flask_session import Session
 from functools import wraps
-
+from datetime import date
 
 SESSION_TYPE = 'redis'
 app.config.from_object(__name__)
@@ -91,7 +91,7 @@ def login():
         # check email is in database and input password matches the hashed password stored
         if not (user and bcrypt.check_password_hash(user[0][UserColumn.PWHASH.value], pw)):
             return render_template("error.html", error_text="Wrong credentials.")
-        else:
+        else:#
             session["user_id"] = user[UserColumn.UID.value]
             return redirect("/")
     else:
@@ -103,6 +103,25 @@ def logout():
     session.clear()
     return redirect("/login")
 
+@app.route("/createaccount", methods=["GET", "POST"])
+@requirelogin
+def createaccount():
+    if request.method == "POST":
+        # gets userID from session, account name from text entry and accounttype from btn value in createaccount.html
+        sUser = session["user_id"]
+        userID = sUser[UserColumn.UID.value]
+        accountID = uuid.uuid4().int & (1 << 30)-1
+        balance = 0
+        accountName = request.form.get("accountname")
+        accountType = request.form['accounttype']
+        # from datetime
+        curDate = date.today()
+        db_cursor.execute("INSERT INTO BankAccount (accnum, userid, acctype, accname, balance, creationdate) VALUES (%s, %s, %s, %s, %s, %s)", (accountID, userID, accountType, accountName, balance, curDate))
+        db_connection.commit()
+        flash("account created")
+        return redirect("/")
+    else:   
+        return render_template("createaccount.html")
 
 @ app.route("/deposit")
 def deposit():
